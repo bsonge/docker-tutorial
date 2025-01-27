@@ -1,0 +1,66 @@
+=== [ Docker ] ===
+process notes
+
+update: 1/27/2025
+
+TERMINAL COMMANDS
+Starting the container
+docker run -dp 80:80 docker/getting-started
+    -d = detached mode (run in bg)
+    -p 80:80 = map port 80 of host 80 in container
+    docker/getting-started = container to use
+
+Stopping the container
+docker remove -f <instance id>
+
+Check instance id
+docker ps
+
+Build docker image
+docker build -t getting-started .
+    -t getting-started = tag app as "getting-started"
+    . = start in this directory
+
+Run sub-image
+docker run -dp 3000:3000 getting-started
+
+Persisting DBs - Spin up a ubuntu instance
+docker run -d ubuntu bash -c "shuf -i 1-10000 -n 1 -o /data.txt && tail -f /dev/null"
+    Start a ubuntu container that will create a file named /data.txt with a random number between 1 and 10000. (The first portion picks a single random number and writes it to /data.txt. The second command is simply watching a file to keep the container running.)
+
+Create volume (persistant database)
+docker volume create <volume name>
+
+Inspect Volume (find mountpoint)
+docker volume inspect <volume name>
+
+Run with volume
+docker run -dp <port>:<port> -v <volume>:<path> <app name>
+e.g. docker run -dp 3000:3000 -v todo-db:/etc/todos getting-started
+
+---
+Run Bind Mount (Refreshable dev environment)
+docker run -dp 3000:3000 \
+    -w /app -v "$(pwd):/app" \
+    node:18-alpine \
+    sh -c "yarn install && yarn run dev"
+
+Explanation:
+    -dp 3000:3000 - same as before. Run in detached (background) mode and create a port mapping
+    -w /app - sets the container's present working directory where the command will run from
+    -v "$(pwd):/app" - bind mount (link) the host's present getting-started/app directory to the container's /app directory. Note: Docker requires absolute paths for binding mounts, so in this example we use pwd for printing the absolute path of the working directory, i.e. the app directory, instead of typing it manually
+    node:18-alpine - the image to use. Note that this is the base image for our app from the Dockerfile
+    sh -c "yarn install && yarn run dev" - the command. We're starting a shell using sh (alpine doesn't have bash) and running yarn install to install all dependencies and then running yarn run dev. If we look in the package.json, we'll see that the dev script is starting nodemon.
+
+
+
+
+
+
+DOCKERFILE
+FROM node:18-alpine
+WORKDIR /app
+COPY . .
+RUN yarn install --production
+CMD ["node", "src/index.js"]
+
